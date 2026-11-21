@@ -30,16 +30,20 @@ jobs:
       - name: Build Folia web bundle
         working-directory: folia
         env:
-          # 替换为你的网易云 API 地址
-          VITE_NETEASE_API_BASE: https://ncmapi.2x.lat
-          # 如果构建时提示缺少 VITE_AI_PROVIDER，请取消下面这行的注释
-          # VITE_AI_PROVIDER: openai
+          # 从 GitHub Secrets 读取网易云 API 地址
+          VITE_NETEASE_API_BASE: ${{ secrets.NETEASE_API_BASE }}
+          # 启用 OpenAI 兼容后端 (DeepSeek)
+          VITE_AI_PROVIDER: openai
+          OPENAI_API_URL: https://api.deepseek.com
+          OPENAI_API_MODEL: deepseek-flash
+          # 从 GitHub Secrets 读取 DeepSeek Key
+          OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           npm run build
           test -d dist || { echo "dist missing"; exit 1; }
           echo "web bundle ready"
-          # 检查你的 API 域名是否成功打包进前端，找不到也不会中断
-          grep -r "ncmapi.2x.lat" dist/assets/ || echo "warning: netease API not found in bundle"
+          # 使用环境变量检查 API 域名是否成功打包进前端，找不到也不会中断
+          grep -r "$VITE_NETEASE_API_BASE" dist/assets/ || echo "warning: netease API not found in bundle"
 
       - name: Install Capacitor and configure
         working-directory: folia
@@ -80,7 +84,7 @@ jobs:
           TAG="ipa-latest"
           gh release create "$TAG" Folia.ipa --clobber \
             --title "Folia IPA (latest)" \
-            --notes "Unsigned IPA for sideloading. 网易云 API: https://ncmapi.2x.lat"
+            --notes "Unsigned IPA for sideloading. Backends configured via GitHub Secrets. AI: DeepSeek Flash"
           echo "released tag=$TAG"
 
       - uses: actions/upload-artifact@v4
