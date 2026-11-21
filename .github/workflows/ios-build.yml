@@ -30,19 +30,16 @@ jobs:
       - name: Build Folia web bundle
         working-directory: folia
         env:
-          # 从 GitHub Secrets 读取网易云 API 地址
+          # API 和 AI 配置保持不变
           VITE_NETEASE_API_BASE: ${{ secrets.NETEASE_API_BASE }}
-          # 启用 OpenAI 兼容后端 (DeepSeek)
           VITE_AI_PROVIDER: openai
           OPENAI_API_URL: https://api.deepseek.com
           OPENAI_API_MODEL: deepseek-flash
-          # 从 GitHub Secrets 读取 DeepSeek Key
           OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           npm run build
           test -d dist || { echo "dist missing"; exit 1; }
           echo "web bundle ready"
-          # 使用环境变量检查 API 域名是否成功打包进前端，找不到也不会中断
           grep -r "$VITE_NETEASE_API_BASE" dist/assets/ || echo "warning: netease API not found in bundle"
 
       - name: Install Capacitor and configure
@@ -81,11 +78,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 1. 尝试创建 Release，如果已存在则忽略错误
           TAG="ipa-latest"
-          gh release create "$TAG" Folia.ipa --clobber \
+          gh release create "$TAG" \
             --title "Folia IPA (latest)" \
-            --notes "Unsigned IPA for sideloading. Backends configured via GitHub Secrets. AI: DeepSeek Flash"
-          echo "released tag=$TAG"
+            --notes "Unsigned IPA for sideloading. AI: DeepSeek Flash" 2>/dev/null || true
+
+          # 2. 使用 upload --clobber 强制覆盖同名文件
+          gh release upload "$TAG" Folia.ipa --clobber
+          echo "released/updated tag=$TAG"
 
       - uses: actions/upload-artifact@v4
         with:
